@@ -1,46 +1,39 @@
 pipeline {
     agent any
 
-    environment {
-        NVM_DIR = "/var/lib/jenkins/.nvm"
-    }
-
     stages {
 
         stage('Checkout Code') {
             steps {
-                checkout scm
+                script {
+                    checkout scm
+                }
             }
         }
 
         stage('Install Dependencies') {
             steps {
-                sh '''
-                . "$NVM_DIR/nvm.sh"
-                nvm use 20
-                npm install
-                '''
+                script {
+                    sh 'npm install'
+                }
             }
         }
 
         stage('Run App') {
             steps {
-                sh '''
-                . "$NVM_DIR/nvm.sh"
-                nvm use 20
+                script {
+                    // Stop any previous instance of the app
+                    sh 'pkill -f "node app.js" || true'
 
-                # Stop previous app if running
-                pkill -f "node app.js" || true
+                    // Start the app in the background and redirect logs
+                    sh 'nohup node app.js > app.log 2>&1 &'
 
-                # Start app in background
-                nohup node app.js > app.log 2>&1 &
+                    // Wait a few seconds to ensure the app starts
+                    sleep 60
 
-                # Wait for app to start
-                sleep 10
-
-                # Check app
-                curl http://localhost:3001 || echo "App is not responding!"
-                '''
+                    // Check if the app is running
+                    sh 'curl http://localhost:3001 || echo "App is not responding!"'
+                }
             }
         }
     }
